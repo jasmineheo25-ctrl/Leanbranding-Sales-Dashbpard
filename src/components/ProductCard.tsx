@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { formatPrice } from '@/lib/format'
 import { CATEGORY_STYLES, type Category } from '@/lib/categories'
 import type { Product } from '@/lib/db/schema'
@@ -6,7 +7,10 @@ export function ProductCard({ product }: { product: Product }) {
   const categoryStyle = CATEGORY_STYLES[product.category as Category] ?? 'bg-gray-100 text-gray-700'
 
   return (
-    <div className="group flex flex-col overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+    <Link
+      href={`/products/${product.id}`}
+      className="group flex flex-col overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+    >
       <div className="flex aspect-square items-center justify-center bg-gradient-to-br from-orange-100 via-amber-50 to-yellow-100 text-6xl">
         <span className="transition group-hover:scale-110">{product.thumbnailEmoji}</span>
       </div>
@@ -18,6 +22,6 @@ export function ProductCard({ product }: { product: Product }) {
         {product.weight && <p className="text-xs text-gray-500">{product.weight}</p>}
         <p className="mt-auto text-lg font-extrabold text-orange-600">{formatPrice(product.price)}</p>
       </div>
-    </div>
+    </Link>
   )
 }
