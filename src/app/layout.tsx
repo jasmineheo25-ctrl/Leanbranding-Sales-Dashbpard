@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "매출 관리 대쉬보드",
-  description: "스룩 · 에센셜 매출/정산/발주 관리",
+  title: "Leanbranding Sales Dashboard",
+  description: "leanbranding 매출/정산/발주 관리",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
