@@ -75,13 +75,20 @@ async function refreshTokens(refreshToken: string): Promise<Cafe24TokenRow> {
   return row;
 }
 
+// Cafe24 returns expires_at/refresh_token_expires_at as naive timestamps in
+// KST (Asia/Seoul, UTC+9) with no offset marker — tag them explicitly so
+// they're stored and compared correctly against UTC "now".
+function asKstIso(naiveTimestamp: string): string {
+  return `${naiveTimestamp}+09:00`;
+}
+
 function toRow(data: TokenResponse): Cafe24TokenRow {
   return {
     mall_id: data.mall_id,
     access_token: data.access_token,
     refresh_token: data.refresh_token,
-    expires_at: data.expires_at,
-    refresh_token_expires_at: data.refresh_token_expires_at,
+    expires_at: asKstIso(data.expires_at),
+    refresh_token_expires_at: asKstIso(data.refresh_token_expires_at),
   };
 }
 

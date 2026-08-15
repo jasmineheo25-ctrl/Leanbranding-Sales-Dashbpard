@@ -1,74 +1,68 @@
-"use client";
+import { fetchOrdersForPurchaseOrders } from "@/lib/cafe24/orders";
+import { getSentItemCodes } from "@/lib/po-sent";
+import { getSupplierEmails } from "@/lib/suppliers";
+import PurchaseOrdersClient, { type SupplierGroup } from "./PurchaseOrdersClient";
 
-import { useMemo, useState } from "react";
-import MallTabs, { type MallFilter } from "@/components/MallTabs";
-import MallBadge from "@/components/MallBadge";
-import StatusPill from "@/components/StatusPill";
-import StatCard from "@/components/StatCard";
-import { PURCHASE_ORDER_ROWS } from "@/lib/mock-data";
+async function buildGroups(): Promise<SupplierGroup[]> {
+  const [orders, sentCodes, supplierEmails] = await Promise.all([
+    fetchOrdersForPurchaseOrders(),
+    getSentItemCodes(),
+    getSupplierEmails(),
+  ]);
 
-export default function PurchaseOrdersPage() {
-  const [mall, setMall] = useState<MallFilter>("all");
+  const groups = new Map<string, SupplierGroup>();
 
-  const rows = useMemo(
-    () => PURCHASE_ORDER_ROWS.filter((r) => mall === "all" || r.mall === mall),
-    [mall],
-  );
+  for (const order of orders) {
+    for (const item of order.items ?? []) {
+      if (!item.supplier_id || item.order_status.startsWith("C")) continue;
 
-  const pendingCount = rows.filter((r) => r.deliveryStatus === "미전달").length;
+      if (!groups.has(item.supplier_id)) {
+        groups.set(item.supplier_id, {
+          supplierId: item.supplier_id,
+          supplierName: item.supplier_name,
+          email: supplierEmails.get(item.supplier_id) ?? "",
+          items: [],
+        });
+      }
+
+      groups.get(item.supplier_id)!.items.push({
+        orderId: order.order_id,
+        orderItemCode: item.order_item_code,
+        productName: item.product_name,
+        quantity: item.quantity,
+        orderedAt: order.order_date.slice(0, 10),
+        alreadySent: sentCodes.has(item.order_item_code),
+      });
+    }
+  }
+
+  return [...groups.values()].sort((a, b) => a.supplierName.localeCompare(b.supplierName, "ko"));
+}
+
+export default async function PurchaseOrdersPage() {
+  let groups: SupplierGroup[] = [];
+  let error: string | null = null;
+
+  try {
+    groups = await buildGroups();
+  } catch (e) {
+    error = e instanceof Error ? e.message : "알 수 없는 오류";
+  }
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-zinc-900">매출확인 - 업체발주서전달</h1>
-          <p className="text-sm text-zinc-500">매출 기반 업체 발주서 전달 현황</p>
+      <div>
+        <h1 className="text-xl font-semibold text-zinc-900">매출확인 - 업체발주서전달</h1>
+        <p className="text-sm text-zinc-500">최근 14일 주문을 공급사별로 묶어 발주 이메일을 보내요 (leanbranding)</p>
+      </div>
+
+      {error && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          카페24 데이터를 불러오지 못했어요: {error}
         </div>
-        <MallTabs value={mall} onChange={setMall} />
-      </div>
+      )}
 
-      <div className="grid grid-cols-3 gap-4">
-        <StatCard label="발주 건수" value={`${rows.length}건`} />
-        <StatCard label="미전달 건수" value={`${pendingCount}건`} hint="업체에 아직 전달되지 않음" />
-        <StatCard label="전달 완료율" value={rows.length ? `${Math.round(((rows.length - pendingCount) / rows.length) * 100)}%` : "-"} />
-      </div>
-
-      <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="border-b border-zinc-200 bg-zinc-50 text-left text-zinc-500">
-            <tr>
-              <th className="px-4 py-3 font-medium whitespace-nowrap">발주번호</th>
-              <th className="px-4 py-3 font-medium whitespace-nowrap">몰</th>
-              <th className="px-4 py-3 font-medium whitespace-nowrap">업체명</th>
-              <th className="px-4 py-3 font-medium whitespace-nowrap">상품명</th>
-              <th className="px-4 py-3 font-medium whitespace-nowrap">수량</th>
-              <th className="px-4 py-3 font-medium whitespace-nowrap">발주일</th>
-              <th className="px-4 py-3 font-medium whitespace-nowrap">전달상태</th>
-              <th className="px-4 py-3 font-medium whitespace-nowrap"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.poNo} className="border-b border-zinc-100 last:border-0">
-                <td className="px-4 py-3 font-mono text-xs text-zinc-600">{r.poNo}</td>
-                <td className="px-4 py-3"><MallBadge mall={r.mall} /></td>
-                <td className="px-4 py-3">{r.vendor}</td>
-                <td className="px-4 py-3">{r.productName}</td>
-                <td className="px-4 py-3">{r.qty}</td>
-                <td className="px-4 py-3 text-zinc-600">{r.orderedAt}</td>
-                <td className="px-4 py-3"><StatusPill status={r.deliveryStatus} /></td>
-                <td className="px-4 py-3">
-                  {r.deliveryStatus === "미전달" && (
-                    <button className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
-                      발주서 전달
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <PurchaseOrdersClient groups={groups} />
     </div>
   );
 }

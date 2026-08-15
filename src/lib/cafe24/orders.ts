@@ -83,3 +83,12 @@ export async function fetchReturnOrders(): Promise<Cafe24Order[]> {
   });
   return data.orders;
 }
+
+export async function fetchOrdersForPurchaseOrders(): Promise<Cafe24Order[]> {
+  const data = await cafe24Get<OrdersResponse>("/orders", {
+    ...dateRange(14),
+    embed: "items",
+    limit: "100",
+  });
+  return data.orders;
+}
