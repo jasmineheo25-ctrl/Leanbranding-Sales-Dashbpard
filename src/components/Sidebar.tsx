@@ -11,7 +11,7 @@ export default function Sidebar() {
     <aside className="w-64 shrink-0 border-r border-zinc-200 bg-white">
       <div className="px-5 py-6">
         <p className="text-lg font-semibold text-zinc-900">매출 관리</p>
-        <p className="text-xs text-zinc-500">스룩 · 에센셜</p>
+        <p className="text-xs text-zinc-500">leanbranding</p>
       </div>
       <nav className="flex flex-col gap-1 px-3">
         {NAV_ITEMS.map((item) => {
