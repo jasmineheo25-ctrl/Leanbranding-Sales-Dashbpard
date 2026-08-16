@@ -104,3 +104,44 @@ export async function fetchOrdersForPurchaseOrders(): Promise<Cafe24Order[]> {
   });
   return data.orders;
 }
+
+const MAX_PAGES = 20;
+
+async function fetchAllOrders(params: Record<string, string>): Promise<Cafe24Order[]> {
+  const all: Cafe24Order[] = [];
+  let offset = 0;
+  const limit = 100;
+
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const data = await cafe24Get<OrdersResponse>("/orders", {
+      ...params,
+      limit: String(limit),
+      offset: String(offset),
+    });
+    all.push(...data.orders);
+    if (data.orders.length < limit) break;
+    offset += limit;
+  }
+
+  return all;
+}
+
+export interface MonthlySalesSummary {
+  totalSales: number;
+  orderCount: number;
+}
+
+export async function fetchMonthlySalesSummary(month: string): Promise<MonthlySalesSummary> {
+  const [year, mon] = month.split("-").map(Number);
+  const start = new Date(Date.UTC(year, mon - 1, 1));
+  const end = new Date(Date.UTC(year, mon, 0));
+  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+
+  const orders = await fetchAllOrders({ start_date: fmt(start), end_date: fmt(end) });
+  const active = orders.filter((o) => o.canceled !== "T");
+
+  return {
+    totalSales: active.reduce((sum, o) => sum + parseFloat(o.payment_amount), 0),
+    orderCount: active.length,
+  };
+}
