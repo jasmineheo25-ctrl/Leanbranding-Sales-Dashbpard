@@ -3,6 +3,10 @@ import { getSettlementStatuses } from "@/lib/settlement-status";
 import { getSuppliers } from "@/lib/suppliers";
 import SettlementClient, { type MonthSettlement } from "./SettlementClient";
 
+// Paginating a few months of a high-volume store's orders can take a while
+// even with request throttling — give this route more room than the default.
+export const maxDuration = 60;
+
 function lastMonths(count: number): string[] {
   const months: string[] = [];
   const now = new Date();
@@ -14,37 +18,32 @@ function lastMonths(count: number): string[] {
 }
 
 async function buildMonths(): Promise<MonthSettlement[]> {
-  const months = lastMonths(6);
+  const months = lastMonths(3);
   const [suppliers, statuses] = await Promise.all([getSuppliers(), getSettlementStatuses()]);
 
-  const result: MonthSettlement[] = [];
-  for (const month of months) {
-    const supplierSales = await fetchMonthlySupplierSales(month);
+  const monthlySales = await Promise.all(months.map((month) => fetchMonthlySupplierSales(month)));
 
-    result.push({
-      month,
-      suppliers: supplierSales.map((s) => {
-        const supplier = suppliers.get(s.supplierId);
-        const status = statuses.get(`${month}:${s.supplierId}`);
-        const commissionRate = supplier?.commission_rate ?? 0;
-        const fee = s.totalSales * (commissionRate / 100);
+  return months.map((month, i) => ({
+    month,
+    suppliers: monthlySales[i].map((s) => {
+      const supplier = suppliers.get(s.supplierId);
+      const status = statuses.get(`${month}:${s.supplierId}`);
+      const commissionRate = supplier?.commission_rate ?? 0;
+      const fee = s.totalSales * (commissionRate / 100);
 
-        return {
-          supplierId: s.supplierId,
-          supplierName: s.supplierName,
-          totalSales: s.totalSales,
-          itemCount: s.itemCount,
-          commissionRate,
-          fee,
-          settledAmount: s.totalSales - fee,
-          status: status?.status ?? "정산대기",
-          memo: status?.memo ?? "",
-        };
-      }),
-    });
-  }
-
-  return result;
+      return {
+        supplierId: s.supplierId,
+        supplierName: s.supplierName,
+        totalSales: s.totalSales,
+        itemCount: s.itemCount,
+        commissionRate,
+        fee,
+        settledAmount: s.totalSales - fee,
+        status: status?.status ?? "정산대기",
+        memo: status?.memo ?? "",
+      };
+    }),
+  }));
 }
 
 export default async function SettlementPage() {

@@ -106,12 +106,6 @@ export async function fetchOrdersForPurchaseOrders(): Promise<Cafe24Order[]> {
 }
 
 const MAX_PAGES = 20;
-// Cafe24 allows 40 req/sec; stay well under that so bursts across callers don't 429.
-const REQUEST_INTERVAL_MS = 60;
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 async function fetchAllOrders(params: Record<string, string>): Promise<Cafe24Order[]> {
   const all: Cafe24Order[] = [];
@@ -127,7 +121,6 @@ async function fetchAllOrders(params: Record<string, string>): Promise<Cafe24Ord
     all.push(...data.orders);
     if (data.orders.length < limit) break;
     offset += limit;
-    await sleep(REQUEST_INTERVAL_MS);
   }
 
   return all;

@@ -180,7 +180,7 @@ export default function SettlementClient({ months }: { months: MonthSettlement[]
   return (
     <div className="flex flex-col gap-8">
       <div className="grid grid-cols-3 gap-4">
-        <StatCard label="정산 금액 합계" value={formatWon(totalSettled)} hint="최근 6개월, 수수료율 기반 자동계산" />
+        <StatCard label="정산 금액 합계" value={formatWon(totalSettled)} hint="최근 3개월, 수수료율 기반 자동계산" />
         <StatCard label="수수료 합계" value={formatWon(totalFee)} />
         <StatCard label="정산 대기" value={`${pendingCount}건`} />
       </div>
