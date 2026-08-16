@@ -7,7 +7,17 @@ interface SendPayload {
   supplierId: string;
   supplierName: string;
   email: string;
-  items: { orderId: string; orderItemCode: string; productName: string; quantity: number }[];
+  items: {
+    orderId: string;
+    orderItemCode: string;
+    productName: string;
+    optionValue: string;
+    quantity: number;
+    receiverName: string;
+    receiverPhone: string;
+    receiverAddress: string;
+    shippingMessage: string;
+  }[];
 }
 
 export async function POST(request: NextRequest) {

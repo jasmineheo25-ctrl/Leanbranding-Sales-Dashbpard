@@ -3,6 +3,7 @@ import { cafe24Get } from "./client";
 export interface Cafe24OrderItem {
   order_item_code: string;
   product_name: string;
+  option_value: string;
   quantity: number;
   product_price: string;
   supplier_id: string;
@@ -11,6 +12,16 @@ export interface Cafe24OrderItem {
   status_text: string;
   claim_code: string | null;
   claim_reason: string | null;
+  shipping_code: string;
+}
+
+export interface Cafe24Receiver {
+  name: string;
+  cellphone: string;
+  address_full: string;
+  zipcode: string;
+  shipping_message: string;
+  shipping_code: string;
 }
 
 export interface Cafe24Order {
@@ -26,6 +37,7 @@ export interface Cafe24Order {
   canceled: "T" | "F";
   return_confirmed_date: string | null;
   items?: Cafe24OrderItem[];
+  receivers?: Cafe24Receiver[];
 }
 
 interface OrdersResponse {
@@ -87,7 +99,7 @@ export async function fetchReturnOrders(): Promise<Cafe24Order[]> {
 export async function fetchOrdersForPurchaseOrders(): Promise<Cafe24Order[]> {
   const data = await cafe24Get<OrdersResponse>("/orders", {
     ...dateRange(14),
-    embed: "items",
+    embed: "items,receivers",
     limit: "100",
   });
   return data.orders;

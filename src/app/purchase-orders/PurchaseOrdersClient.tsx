@@ -8,9 +8,14 @@ export interface SupplierItem {
   orderId: string;
   orderItemCode: string;
   productName: string;
+  optionValue: string;
   quantity: number;
   orderedAt: string;
   alreadySent: boolean;
+  receiverName: string;
+  receiverPhone: string;
+  receiverAddress: string;
+  shippingMessage: string;
 }
 
 export interface SupplierGroup {
@@ -50,7 +55,12 @@ function SupplierCard({ group }: { group: SupplierGroup }) {
             orderId: i.orderId,
             orderItemCode: i.orderItemCode,
             productName: i.productName,
+            optionValue: i.optionValue,
             quantity: i.quantity,
+            receiverName: i.receiverName,
+            receiverPhone: i.receiverPhone,
+            receiverAddress: i.receiverAddress,
+            shippingMessage: i.shippingMessage,
           })),
         }),
       });
@@ -95,30 +105,46 @@ function SupplierCard({ group }: { group: SupplierGroup }) {
 
       {error && <div className="px-4 py-2 text-xs text-red-600">{error}</div>}
 
-      <table className="w-full text-sm">
-        <thead className="border-b border-zinc-200 bg-zinc-50 text-left text-zinc-500">
-          <tr>
-            <th className="px-4 py-2 font-medium whitespace-nowrap">주문번호</th>
-            <th className="px-4 py-2 font-medium whitespace-nowrap">상품명</th>
-            <th className="px-4 py-2 font-medium whitespace-nowrap">수량</th>
-            <th className="px-4 py-2 font-medium whitespace-nowrap">주문일</th>
-            <th className="px-4 py-2 font-medium whitespace-nowrap">전달상태</th>
-          </tr>
-        </thead>
-        <tbody>
-          {group.items.map((item) => (
-            <tr key={item.orderItemCode} className="border-b border-zinc-100 last:border-0">
-              <td className="px-4 py-2 font-mono text-xs text-zinc-600">{item.orderId}</td>
-              <td className="px-4 py-2">{item.productName}</td>
-              <td className="px-4 py-2">{item.quantity}</td>
-              <td className="px-4 py-2 text-zinc-600">{item.orderedAt}</td>
-              <td className="px-4 py-2">
-                <StatusPill status={sentCodes.has(item.orderItemCode) ? "전달완료" : "미전달"} />
-              </td>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="border-b border-zinc-200 bg-zinc-50 text-left text-zinc-500">
+            <tr>
+              <th className="px-4 py-2 font-medium whitespace-nowrap">주문번호</th>
+              <th className="px-4 py-2 font-medium whitespace-nowrap">상품명 / 옵션</th>
+              <th className="px-4 py-2 font-medium whitespace-nowrap">수량</th>
+              <th className="px-4 py-2 font-medium whitespace-nowrap">수령자</th>
+              <th className="px-4 py-2 font-medium whitespace-nowrap">연락처</th>
+              <th className="px-4 py-2 font-medium whitespace-nowrap">배송지</th>
+              <th className="px-4 py-2 font-medium whitespace-nowrap">주문일</th>
+              <th className="px-4 py-2 font-medium whitespace-nowrap">전달상태</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {group.items.map((item) => (
+              <tr key={item.orderItemCode} className="border-b border-zinc-100 last:border-0">
+                <td className="px-4 py-2 font-mono text-xs text-zinc-600">{item.orderId}</td>
+                <td className="px-4 py-2">
+                  <div>{item.productName}</div>
+                  {item.optionValue && <div className="text-xs text-zinc-400">{item.optionValue}</div>}
+                </td>
+                <td className="px-4 py-2">{item.quantity}</td>
+                <td className="px-4 py-2 whitespace-nowrap">{item.receiverName}</td>
+                <td className="px-4 py-2 whitespace-nowrap">{item.receiverPhone}</td>
+                <td className="px-4 py-2 max-w-xs">
+                  <div>{item.receiverAddress}</div>
+                  {item.shippingMessage && (
+                    <div className="text-xs text-zinc-400">메모: {item.shippingMessage}</div>
+                  )}
+                </td>
+                <td className="px-4 py-2 text-zinc-600 whitespace-nowrap">{item.orderedAt}</td>
+                <td className="px-4 py-2">
+                  <StatusPill status={sentCodes.has(item.orderItemCode) ? "전달완료" : "미전달"} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

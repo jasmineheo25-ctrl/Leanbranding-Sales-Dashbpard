@@ -16,6 +16,8 @@ async function buildGroups(): Promise<SupplierGroup[]> {
     for (const item of order.items ?? []) {
       if (!item.supplier_id || item.order_status.startsWith("C")) continue;
 
+      const receiver = order.receivers?.find((r) => r.shipping_code === item.shipping_code);
+
       if (!groups.has(item.supplier_id)) {
         groups.set(item.supplier_id, {
           supplierId: item.supplier_id,
@@ -29,9 +31,14 @@ async function buildGroups(): Promise<SupplierGroup[]> {
         orderId: order.order_id,
         orderItemCode: item.order_item_code,
         productName: item.product_name,
+        optionValue: item.option_value,
         quantity: item.quantity,
         orderedAt: order.order_date.slice(0, 10),
         alreadySent: sentCodes.has(item.order_item_code),
+        receiverName: receiver?.name ?? "-",
+        receiverPhone: receiver?.cellphone ?? "-",
+        receiverAddress: receiver ? `(${receiver.zipcode}) ${receiver.address_full}` : "-",
+        shippingMessage: receiver?.shipping_message ?? "",
       });
     }
   }
