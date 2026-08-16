@@ -40,36 +40,39 @@ function SupplierSettlementRow({ month, row }: { month: string; row: SupplierSet
   const fee = row.totalSales * (rate / 100);
   const settledAmount = row.totalSales - fee;
 
+  async function persist() {
+    const commissionRes = await fetch("/api/suppliers/commission", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        supplierId: row.supplierId,
+        supplierName: row.supplierName,
+        commissionRate: rate,
+      }),
+    });
+    if (!commissionRes.ok) {
+      const body = await commissionRes.json().catch(() => ({}));
+      throw new Error(body.error ?? `수수료율 저장 실패 (${commissionRes.status})`);
+    }
+
+    const statusRes = await fetch("/api/settlements/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ month, supplier_id: row.supplierId, status, memo }),
+    });
+    if (!statusRes.ok) {
+      const body = await statusRes.json().catch(() => ({}));
+      throw new Error(body.error ?? `상태 저장 실패 (${statusRes.status})`);
+    }
+  }
+
   async function handleSave() {
     setSaving(true);
     setError(null);
     setSaved(false);
 
     try {
-      const commissionRes = await fetch("/api/suppliers/commission", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          supplierId: row.supplierId,
-          supplierName: row.supplierName,
-          commissionRate: rate,
-        }),
-      });
-      if (!commissionRes.ok) {
-        const body = await commissionRes.json().catch(() => ({}));
-        throw new Error(body.error ?? `수수료율 저장 실패 (${commissionRes.status})`);
-      }
-
-      const statusRes = await fetch("/api/settlements/save", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ month, supplier_id: row.supplierId, status, memo }),
-      });
-      if (!statusRes.ok) {
-        const body = await statusRes.json().catch(() => ({}));
-        throw new Error(body.error ?? `상태 저장 실패 (${statusRes.status})`);
-      }
-
+      await persist();
       setSaved(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "알 수 없는 오류");
@@ -88,6 +91,10 @@ function SupplierSettlementRow({ month, row }: { month: string; row: SupplierSet
     setSent(false);
 
     try {
+      // Persist the current rate/status/memo first so what's saved always
+      // matches what the supplier is being told in the email.
+      await persist();
+
       const res = await fetch("/api/settlements/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
