@@ -34,6 +34,7 @@ async function buildMonths(): Promise<MonthSettlement[]> {
       return {
         supplierId: s.supplierId,
         supplierName: s.supplierName,
+        email: supplier?.email ?? "",
         totalSales: s.totalSales,
         itemCount: s.itemCount,
         commissionRate,

@@ -9,6 +9,7 @@ import { formatWon } from "@/lib/format";
 export interface SupplierSettlement {
   supplierId: string;
   supplierName: string;
+  email: string;
   totalSales: number;
   itemCount: number;
   commissionRate: number;
@@ -27,9 +28,13 @@ function SupplierSettlementRow({ month, row }: { month: string; row: SupplierSet
   const [commissionRate, setCommissionRate] = useState(String(row.commissionRate));
   const [status, setStatus] = useState(row.status);
   const [memo, setMemo] = useState(row.memo);
+  const [email, setEmail] = useState(row.email);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
 
   const rate = Number(commissionRate) || 0;
   const fee = row.totalSales * (rate / 100);
@@ -70,6 +75,43 @@ function SupplierSettlementRow({ month, row }: { month: string; row: SupplierSet
       setError(e instanceof Error ? e.message : "알 수 없는 오류");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSendEmail() {
+    if (!email) {
+      setSendError("이메일을 입력해주세요.");
+      return;
+    }
+    setSending(true);
+    setSendError(null);
+    setSent(false);
+
+    try {
+      const res = await fetch("/api/settlements/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          month,
+          supplierId: row.supplierId,
+          supplierName: row.supplierName,
+          email,
+          totalSales: row.totalSales,
+          commissionRate: rate,
+          fee,
+          settledAmount,
+          status,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `전송 실패 (${res.status})`);
+      }
+      setSent(true);
+    } catch (e) {
+      setSendError(e instanceof Error ? e.message : "알 수 없는 오류");
+    } finally {
+      setSending(false);
     }
   }
 
@@ -130,7 +172,7 @@ function SupplierSettlementRow({ month, row }: { month: string; row: SupplierSet
         </label>
       </div>
 
-      <div className="mt-3 flex items-center gap-3">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         <button
           onClick={handleSave}
           disabled={saving}
@@ -140,6 +182,23 @@ function SupplierSettlementRow({ month, row }: { month: string; row: SupplierSet
         </button>
         {saved && <span className="text-xs text-emerald-600">저장됨</span>}
         {error && <span className="text-xs text-red-600">{error}</span>}
+
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="공급사 이메일 (발주서와 동일)"
+          className="ml-2 rounded-md border border-zinc-200 px-3 py-1.5 text-sm"
+        />
+        <button
+          onClick={handleSendEmail}
+          disabled={sending}
+          className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-40"
+        >
+          {sending ? "전송 중..." : "정산서 전달"}
+        </button>
+        {sent && <span className="text-xs text-emerald-600">전송됨</span>}
+        {sendError && <span className="text-xs text-red-600">{sendError}</span>}
       </div>
     </div>
   );
