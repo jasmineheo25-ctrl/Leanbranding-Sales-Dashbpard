@@ -39,3 +39,19 @@ export async function saveSupplierCommission(supplierId: string, supplierName: s
 
   if (error) throw new Error(`Failed to save commission rate: ${error.message}`);
 }
+
+export interface BulkSupplierRow {
+  supplier_id: string;
+  supplier_name: string;
+  email: string;
+  commission_rate: number;
+}
+
+export async function bulkUpsertSuppliers(rows: BulkSupplierRow[]) {
+  const now = new Date().toISOString();
+  const { error } = await supabaseAdmin()
+    .from("suppliers")
+    .upsert(rows.map((r) => ({ ...r, updated_at: now })));
+
+  if (error) throw new Error(`Failed to bulk-save suppliers: ${error.message}`);
+}

@@ -5,6 +5,7 @@ import MallBadge from "@/components/MallBadge";
 import StatusPill from "@/components/StatusPill";
 import StatCard from "@/components/StatCard";
 import { formatWon } from "@/lib/format";
+import SupplierInfoBanner from "./SupplierInfoBanner";
 
 export interface SupplierSettlement {
   supplierId: string;
@@ -243,8 +244,19 @@ export default function SettlementClient({ months }: { months: MonthSettlement[]
   const totalFee = allSuppliers.reduce((sum, s) => sum + s.fee, 0);
   const pendingCount = allSuppliers.filter((s) => s.status === "정산대기").length;
 
+  const uniqueSuppliers = [...new Map(allSuppliers.map((s) => [s.supplierId, s])).values()]
+    .map((s) => ({
+      supplierId: s.supplierId,
+      supplierName: s.supplierName,
+      email: s.email,
+      commissionRate: s.commissionRate,
+    }))
+    .sort((a, b) => a.supplierName.localeCompare(b.supplierName, "ko"));
+
   return (
     <div className="flex flex-col gap-8">
+      <SupplierInfoBanner suppliers={uniqueSuppliers} />
+
       <div className="grid grid-cols-3 gap-4">
         <StatCard label="정산 금액 합계" value={formatWon(totalSettled)} hint="최근 3개월, 수수료율 기반 자동계산" />
         <StatCard label="수수료 합계" value={formatWon(totalFee)} />
