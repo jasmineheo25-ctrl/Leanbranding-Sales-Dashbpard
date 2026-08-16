@@ -106,6 +106,12 @@ export async function fetchOrdersForPurchaseOrders(): Promise<Cafe24Order[]> {
 }
 
 const MAX_PAGES = 20;
+// Cafe24 allows 40 req/sec; stay well under that so bursts across callers don't 429.
+const REQUEST_INTERVAL_MS = 60;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 async function fetchAllOrders(params: Record<string, string>): Promise<Cafe24Order[]> {
   const all: Cafe24Order[] = [];
@@ -121,27 +127,59 @@ async function fetchAllOrders(params: Record<string, string>): Promise<Cafe24Ord
     all.push(...data.orders);
     if (data.orders.length < limit) break;
     offset += limit;
+    await sleep(REQUEST_INTERVAL_MS);
   }
 
   return all;
 }
 
-export interface MonthlySalesSummary {
+export interface SupplierMonthlySales {
+  supplierId: string;
+  supplierName: string;
   totalSales: number;
-  orderCount: number;
+  itemCount: number;
 }
 
-export async function fetchMonthlySalesSummary(month: string): Promise<MonthlySalesSummary> {
+const NON_REVENUE_PREFIXES = ["C"]; // cancellations
+
+function isRevenueItem(item: Cafe24OrderItem): boolean {
+  if (NON_REVENUE_PREFIXES.some((p) => item.order_status.startsWith(p))) return false;
+  if (RETURN_STATUS_CODES.includes(item.order_status)) return false;
+  return true;
+}
+
+export async function fetchMonthlySupplierSales(month: string): Promise<SupplierMonthlySales[]> {
   const [year, mon] = month.split("-").map(Number);
   const start = new Date(Date.UTC(year, mon - 1, 1));
   const end = new Date(Date.UTC(year, mon, 0));
   const fmt = (d: Date) => d.toISOString().slice(0, 10);
 
-  const orders = await fetchAllOrders({ start_date: fmt(start), end_date: fmt(end) });
-  const active = orders.filter((o) => o.canceled !== "T");
+  const orders = await fetchAllOrders({
+    start_date: fmt(start),
+    end_date: fmt(end),
+    embed: "items",
+  });
 
-  return {
-    totalSales: active.reduce((sum, o) => sum + parseFloat(o.payment_amount), 0),
-    orderCount: active.length,
-  };
+  const bySupplier = new Map<string, SupplierMonthlySales>();
+
+  for (const order of orders) {
+    for (const item of order.items ?? []) {
+      if (!item.supplier_id || !isRevenueItem(item)) continue;
+
+      if (!bySupplier.has(item.supplier_id)) {
+        bySupplier.set(item.supplier_id, {
+          supplierId: item.supplier_id,
+          supplierName: item.supplier_name,
+          totalSales: 0,
+          itemCount: 0,
+        });
+      }
+
+      const entry = bySupplier.get(item.supplier_id)!;
+      entry.totalSales += parseFloat(item.product_price) * item.quantity;
+      entry.itemCount += item.quantity;
+    }
+  }
+
+  return [...bySupplier.values()].sort((a, b) => b.totalSales - a.totalSales);
 }

@@ -1,13 +1,13 @@
 import { fetchOrdersForPurchaseOrders } from "@/lib/cafe24/orders";
 import { getSentItemCodes } from "@/lib/po-sent";
-import { getSupplierEmails } from "@/lib/suppliers";
+import { getSuppliers } from "@/lib/suppliers";
 import PurchaseOrdersClient, { type SupplierGroup } from "./PurchaseOrdersClient";
 
 async function buildGroups(): Promise<SupplierGroup[]> {
-  const [orders, sentCodes, supplierEmails] = await Promise.all([
+  const [orders, sentCodes, suppliers] = await Promise.all([
     fetchOrdersForPurchaseOrders(),
     getSentItemCodes(),
-    getSupplierEmails(),
+    getSuppliers(),
   ]);
 
   const groups = new Map<string, SupplierGroup>();
@@ -22,7 +22,7 @@ async function buildGroups(): Promise<SupplierGroup[]> {
         groups.set(item.supplier_id, {
           supplierId: item.supplier_id,
           supplierName: item.supplier_name,
-          email: supplierEmails.get(item.supplier_id) ?? "",
+          email: suppliers.get(item.supplier_id)?.email ?? "",
           items: [],
         });
       }

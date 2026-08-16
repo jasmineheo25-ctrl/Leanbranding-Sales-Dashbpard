@@ -1,6 +1,7 @@
-import { fetchMonthlySalesSummary } from "@/lib/cafe24/orders";
-import { getSettlementRecords } from "@/lib/settlements";
-import SettlementClient, { type SettlementRow } from "./SettlementClient";
+import { fetchMonthlySupplierSales } from "@/lib/cafe24/orders";
+import { getSettlementStatuses } from "@/lib/settlement-status";
+import { getSuppliers } from "@/lib/suppliers";
+import SettlementClient, { type MonthSettlement } from "./SettlementClient";
 
 function lastMonths(count: number): string[] {
   const months: string[] = [];
@@ -12,34 +13,46 @@ function lastMonths(count: number): string[] {
   return months;
 }
 
-async function buildRows(): Promise<SettlementRow[]> {
+async function buildMonths(): Promise<MonthSettlement[]> {
   const months = lastMonths(6);
-  const records = await getSettlementRecords();
+  const [suppliers, statuses] = await Promise.all([getSuppliers(), getSettlementStatuses()]);
 
-  const rows: SettlementRow[] = [];
+  const result: MonthSettlement[] = [];
   for (const month of months) {
-    const summary = await fetchMonthlySalesSummary(month);
-    const record = records.get(month);
-    rows.push({
+    const supplierSales = await fetchMonthlySupplierSales(month);
+
+    result.push({
       month,
-      totalSales: summary.totalSales,
-      orderCount: summary.orderCount,
-      fee: record?.fee ?? 0,
-      settledAmount: record?.settled_amount ?? 0,
-      status: record?.status ?? "정산대기",
-      memo: record?.memo ?? "",
+      suppliers: supplierSales.map((s) => {
+        const supplier = suppliers.get(s.supplierId);
+        const status = statuses.get(`${month}:${s.supplierId}`);
+        const commissionRate = supplier?.commission_rate ?? 0;
+        const fee = s.totalSales * (commissionRate / 100);
+
+        return {
+          supplierId: s.supplierId,
+          supplierName: s.supplierName,
+          totalSales: s.totalSales,
+          itemCount: s.itemCount,
+          commissionRate,
+          fee,
+          settledAmount: s.totalSales - fee,
+          status: status?.status ?? "정산대기",
+          memo: status?.memo ?? "",
+        };
+      }),
     });
   }
 
-  return rows;
+  return result;
 }
 
 export default async function SettlementPage() {
-  let rows: SettlementRow[] = [];
+  let months: MonthSettlement[] = [];
   let error: string | null = null;
 
   try {
-    rows = await buildRows();
+    months = await buildMonths();
   } catch (e) {
     error = e instanceof Error ? e.message : "알 수 없는 오류";
   }
@@ -49,8 +62,8 @@ export default async function SettlementPage() {
       <div>
         <h1 className="text-xl font-semibold text-zinc-900">정산</h1>
         <p className="text-sm text-zinc-500">
-          총매출은 카페24 실주문에서 자동 계산돼요 (leanbranding). 수수료·정산금액은 PG사 정산서를 보고 직접
-          입력해주세요 — 카페24 API로는 제공되지 않아요.
+          공급사별 매출은 카페24 실주문에서 자동 계산돼요 (leanbranding). 공급사마다 수수료율(%)을 입력해두면
+          수수료·정산금액이 자동 계산돼요.
         </p>
       </div>
 
@@ -60,7 +73,7 @@ export default async function SettlementPage() {
         </div>
       )}
 
-      <SettlementClient rows={rows} />
+      <SettlementClient months={months} />
     </div>
   );
 }
