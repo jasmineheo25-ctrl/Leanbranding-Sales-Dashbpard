@@ -7,6 +7,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -45,14 +46,23 @@ function LoginForm() {
           <h1 className="text-lg font-semibold text-zinc-900">Leanbranding Sales Dashboard</h1>
           <p className="text-sm text-zinc-500">비밀번호를 입력해주세요.</p>
         </div>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="비밀번호"
-          autoFocus
-          className="rounded-md border border-zinc-200 px-3 py-2 text-sm"
-        />
+        <div className="relative">
+          <input
+            type={showPassword ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="비밀번호"
+            autoFocus
+            className="w-full rounded-md border border-zinc-200 px-3 py-2 pr-16 text-sm"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            className="absolute inset-y-0 right-2 text-xs text-zinc-500 hover:text-zinc-700"
+          >
+            {showPassword ? "숨기기" : "표시"}
+          </button>
+        </div>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button
           type="submit"
