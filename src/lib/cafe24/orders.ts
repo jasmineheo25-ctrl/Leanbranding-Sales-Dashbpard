@@ -69,12 +69,7 @@ function dateRange(days: number) {
 }
 
 export async function fetchSalesOrders(): Promise<Cafe24Order[]> {
-  const data = await cafe24Get<OrdersResponse>("/orders", {
-    ...dateRange(30),
-    embed: "items",
-    limit: "100",
-  });
-  return data.orders;
+  return fetchAllOrders({ ...dateRange(30), embed: "items" });
 }
 
 export async function fetchBankTransferOrders(): Promise<Cafe24Order[]> {
@@ -175,4 +170,45 @@ export async function fetchMonthlySupplierSales(month: string): Promise<Supplier
   }
 
   return [...bySupplier.values()].sort((a, b) => b.totalSales - a.totalSales);
+}
+
+export interface DailyBrandSales {
+  date: string;
+  brands: SupplierMonthlySales[];
+  totalSales: number;
+}
+
+export function groupByDateAndSupplier(orders: Cafe24Order[]): DailyBrandSales[] {
+  const byDate = new Map<string, Map<string, SupplierMonthlySales>>();
+
+  for (const order of orders) {
+    const date = order.order_date.slice(0, 10);
+
+    for (const item of order.items ?? []) {
+      if (!item.supplier_id || !isRevenueItem(item)) continue;
+
+      if (!byDate.has(date)) byDate.set(date, new Map());
+      const bySupplier = byDate.get(date)!;
+
+      if (!bySupplier.has(item.supplier_id)) {
+        bySupplier.set(item.supplier_id, {
+          supplierId: item.supplier_id,
+          supplierName: item.supplier_name,
+          totalSales: 0,
+          itemCount: 0,
+        });
+      }
+
+      const entry = bySupplier.get(item.supplier_id)!;
+      entry.totalSales += parseFloat(item.product_price) * item.quantity;
+      entry.itemCount += item.quantity;
+    }
+  }
+
+  return [...byDate.entries()]
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([date, bySupplier]) => {
+      const brands = [...bySupplier.values()].sort((a, b) => b.totalSales - a.totalSales);
+      return { date, brands, totalSales: brands.reduce((sum, b) => sum + b.totalSales, 0) };
+    });
 }
