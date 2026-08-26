@@ -6,6 +6,7 @@ export interface Cafe24OrderItem {
   option_value: string;
   quantity: number;
   product_price: string;
+  option_price: string;
   supplier_id: string;
   supplier_name: string;
   order_status: string;
@@ -136,6 +137,13 @@ function isRevenueItem(item: Cafe24OrderItem): boolean {
   return true;
 }
 
+// product_price is the base price only — many items carry most of their
+// actual price in option_price (e.g. a premium option), so both must be
+// added together to get what the customer was actually charged per unit.
+function itemUnitPrice(item: Cafe24OrderItem): number {
+  return parseFloat(item.product_price) + parseFloat(item.option_price || "0");
+}
+
 export async function fetchMonthlySupplierSales(month: string): Promise<SupplierMonthlySales[]> {
   const [year, mon] = month.split("-").map(Number);
   const start = new Date(Date.UTC(year, mon - 1, 1));
@@ -164,7 +172,7 @@ export async function fetchMonthlySupplierSales(month: string): Promise<Supplier
       }
 
       const entry = bySupplier.get(item.supplier_id)!;
-      entry.totalSales += parseFloat(item.product_price) * item.quantity;
+      entry.totalSales += itemUnitPrice(item) * item.quantity;
       entry.itemCount += item.quantity;
     }
   }
@@ -200,7 +208,7 @@ export function groupByDateAndSupplier(orders: Cafe24Order[]): DailyBrandSales[]
       }
 
       const entry = bySupplier.get(item.supplier_id)!;
-      entry.totalSales += parseFloat(item.product_price) * item.quantity;
+      entry.totalSales += itemUnitPrice(item) * item.quantity;
       entry.itemCount += item.quantity;
     }
   }
